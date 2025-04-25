@@ -2,7 +2,15 @@
 name = "rabbitmq_streamer"
 version = "0.1.0"
 edition = "2021"
-description = "Biblioteca para consumir e publicar mensagens no RabbitMQ com controle de ack manual e arquitetura baseada em streams."
+description = "A library to consume RabbiMQ streams"
+
+authors = ["André Claudino <claudino@d2x.com.br>"]
+homepage = "https://github.com/neurono-ml/rabbitmq_streamer"
+repository = "https://github.com/neurono-ml/rabbitmq_streamer"
+readme = "README.md"
+keywords = ["RabbitMQ", "streaming", "async"]
+categories = ["development-tools"]
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
