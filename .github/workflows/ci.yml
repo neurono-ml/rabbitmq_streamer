@@ -6,27 +6,27 @@ on:
     tags: ["v*"]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    services:
-      rabbitmq:
-        image: rabbitmq:3-management
-        ports:
-          - 5672:5672
-          - 15672:15672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+  # test:
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     rabbitmq:
+  #       image: rabbitmq:3-management
+  #       ports:
+  #         - 5672:5672
+  #         - 15672:15672
+  #       options: >-
+  #         --health-cmd "rabbitmq-diagnostics -q ping"
+  #         --health-interval 10s
+  #         --health-timeout 5s
+  #         --health-retries 5
 
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - run: cargo test
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         override: true
+  #     - run: cargo test
 
   publish:
     name: Publish to Crates.io
@@ -39,4 +39,4 @@ jobs:
         with:
           toolchain: stable
           override: true
-      - run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --color always

@@ -1,37 +1,17 @@
-version: '3.8'
-
 volumes:
   mysql-data:
   rabbitmq-data:
 
 services:
   app:
+    command: sleep infinity
     build:
       context: .
       dockerfile: Dockerfile
-
     volumes:
       - ../..:/workspaces:cached
+      - ~/.ssh:/home/vscode/.ssh:cached
 
-    # Overrides default command so things don't shut down after the process ends.
-    command: sleep infinity
-
-    # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
-    network_mode: service:db
-
-    # Use "forwardPorts" in **devcontainer.json** to forward an app port locally. 
-    # (Adding the "ports" property to this file will not forward from a Codespace.)
-
-  db:
-    image: mysql:8.0.42-debian
-    restart: unless-stopped
-    volumes:
-      - mysql-data:/var/lib/mysql
-    env_file:
-      - .env
-    ports:
-    - "3306:3306"
-  
   pipe:
     image: rabbitmq:3-management
     restart: unless-stopped
@@ -42,3 +22,7 @@ services:
     ports:
      - "5672:5672"
      - "15672:15672"
+
+networks:
+  default:
+    driver: bridge
