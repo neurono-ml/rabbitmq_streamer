@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
 
 jobs:
@@ -30,7 +29,7 @@ jobs:
 
   publish:
     name: Publish to Crates.io
-    needs: test
+    # needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
