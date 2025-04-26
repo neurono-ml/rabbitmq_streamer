@@ -1,3 +1,4 @@
+pub mod rabbit_message;
 pub mod consumer;
 pub mod publisher;
 pub mod common;

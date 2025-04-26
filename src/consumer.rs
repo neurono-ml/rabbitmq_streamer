@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 use tokio::sync::mpsc::Receiver;
 use tracing::instrument;
 
-use crate::common::make_routing_key;
+use crate::{common::make_routing_key, rabbit_message::AckableMessage};
 
 /// A struct representing a RabbitMQ consumer. It holds the necessary information to consume messages from a queue.
 /// **Parameters**
@@ -51,7 +51,7 @@ impl RabbitConsumer {
         Ok(consumer)
     }
 
-    /// Loads messages from the specified queue.
+    /// Loads messages from the specified queue, they are automatically acked when they are received.
     /// **Parameters**
     /// * `channel_capacity`: The capacity of the internal channel to use for exchanging messages.
     /// * `tag`: A unique identifier for the consumer.
@@ -60,7 +60,7 @@ impl RabbitConsumer {
     #[instrument]
     pub async fn load_messages<T>(&self, channel_capacity: usize, tag: &str) -> anyhow::Result<Receiver<T>> where T: DeserializeOwned + Send + Sync + 'static {
         let consume_options = BasicConsumeOptions {
-            no_ack: true,
+            no_ack: false,
             ..BasicConsumeOptions::default()
         };
         let consumer_tag = format!("{}-{}", self.app_group_namespace, tag);
@@ -73,6 +73,37 @@ impl RabbitConsumer {
                 let message_content = delivery.data;
                 let message = serde_json::from_slice(&message_content)?;
                 sender.send(message).await?;
+            }
+
+            anyhow::Ok(())
+        });
+        
+
+        Ok(receiver)
+    }
+
+    /// Loads messages from the specified queue, they should be manually acknowledged by the consumer.
+    /// **Parameters**
+    /// * `channel_capacity`: The capacity of the internal channel to use for exchanging messages.
+    /// * `tag`: A unique identifier for the consumer.
+    /// **Returns**
+    /// * `tokio::sync::mpsc::Receiver<AckableMessage<T>>` - A receiver that can be used to receive messages from the queue.
+    pub async fn load_ackable_messages<T>(&self, channel_capacity: usize, tag: &str) -> anyhow::Result<Receiver<AckableMessage<T>>> where T: DeserializeOwned + Send + Sync + 'static {
+        let consume_options = BasicConsumeOptions {
+            no_ack: true,
+            ..BasicConsumeOptions::default()
+        };
+        let consumer_tag = format!("{}-{}", self.app_group_namespace, tag);
+        let mut channel_consumer = self.channel.basic_consume(&self.queue_name, &consumer_tag, consume_options, FieldTable::default()).await?;
+
+        let (sender, receiver) = tokio::sync::mpsc::channel::<AckableMessage<T>>(channel_capacity);
+
+        tokio::spawn(async move {
+            while let Some(delivery) = channel_consumer.next().await.transpose()? {
+                let message_content = delivery.data.clone();
+                let message = serde_json::from_slice(&message_content)?;
+                let ackable_message = AckableMessage::new(message, delivery);
+                sender.send(ackable_message).await?;
             }
 
             anyhow::Ok(())
