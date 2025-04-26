@@ -17,19 +17,19 @@ impl<T> AckableMessage<T> {
         }
     }
 
-    pub async fn ack(self) -> anyhow::Result<()> {
+    pub async fn ack(&self) -> anyhow::Result<()> {
         let options = BasicAckOptions { multiple: false };
         self.delivery.acker.ack(options).await?;
         Ok(())
     }
 
-    pub async fn nack(self) -> anyhow::Result<()> {
+    pub async fn nack(&self) -> anyhow::Result<()> {
         let options = BasicNackOptions { requeue: true, multiple: false };
         self.delivery.acker.nack(options).await?;
         Ok(())
     }
 
-    pub async fn reject(self) -> anyhow::Result<()> {
+    pub async fn reject(&self) -> anyhow::Result<()> {
         let options = BasicRejectOptions{ requeue: false };
         self.delivery.acker.reject(options).await?;
         Ok(())
