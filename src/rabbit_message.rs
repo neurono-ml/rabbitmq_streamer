@@ -35,8 +35,9 @@ impl<T> AckableMessage<T> {
         Ok(())
     }
 
-    pub fn payload(&self) -> &Arc<T> {
-        &self.payload
+    pub fn message(&self) -> T where T: Clone {
+        let message = (*self.payload).clone();
+        message
     }
 }
 
