@@ -90,7 +90,9 @@ impl RabbitConsumer {
     /// * `tokio::sync::mpsc::Receiver<AckableMessage<T>>` - A receiver that can be used to receive messages from the queue.
     pub async fn load_ackable_messages<T>(&self, channel_capacity: usize, tag: &str) -> anyhow::Result<Receiver<AckableMessage<T>>> where T: DeserializeOwned + Send + Sync + 'static {
         let consume_options = BasicConsumeOptions {
-            no_ack: true,
+            no_ack: false,
+            nowait: false,
+            exclusive: false,
             ..BasicConsumeOptions::default()
         };
         let consumer_tag = format!("{}-{}", self.app_group_namespace, tag);
