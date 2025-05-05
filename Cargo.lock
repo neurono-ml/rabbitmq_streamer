@@ -1544,6 +1544,7 @@ dependencies = [
  "anyhow",
  "futures",
  "lapin",
+ "log",
  "serde",
  "serde_json",
  "testcontainers",
