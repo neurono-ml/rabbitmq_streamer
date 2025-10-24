@@ -11,7 +11,7 @@ use tokio::sync::mpsc::{self, Receiver};
 use tokio::time::sleep;
 use tracing::instrument;
 
-use crate::rabbit_message::AckableMessage;
+use crate::{consumer::RabbitConsumerBuilder, rabbit_message::AckableMessage};
 
 /// A struct representing a RabbitMQ consumer.
 /// It manages connection, channel, and message consumption from a specified queue.
@@ -23,6 +23,9 @@ pub struct RabbitConsumer {
 }
 
 impl RabbitConsumer {
+    pub fn builder() -> RabbitConsumerBuilder {
+        RabbitConsumerBuilder::new()
+    }
     /// Loads messages from the queue and automatically acknowledges them upon receipt.
     ///
     /// # Parameters

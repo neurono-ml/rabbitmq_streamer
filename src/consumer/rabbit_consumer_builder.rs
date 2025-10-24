@@ -39,7 +39,7 @@ impl RabbitConsumerBuilder {
         self
     }
 
-    fn build(self) -> anyhow::Result<RabbitConsumer> {
+    pub fn build(self) -> anyhow::Result<RabbitConsumer> {
         let uri = self.uri.context("uri is required")?;
         let queue_name = self.queue_name.context("queue_name is required")?;
         let consumer_tag = if let Some(consumer_tag) = self.consumer_tag {
