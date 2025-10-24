@@ -11,44 +11,18 @@ use tokio::sync::mpsc::{self, Receiver};
 use tokio::time::sleep;
 use tracing::instrument;
 
-use crate::{common::make_routing_key, rabbit_message::AckableMessage};
+use crate::rabbit_message::AckableMessage;
 
 /// A struct representing a RabbitMQ consumer.
 /// It manages connection, channel, and message consumption from a specified queue.
 #[derive(Debug)]
 pub struct RabbitConsumer {
-    uri: String,
-    exchange_name: String,
-    queue_name: String,
-    app_group_namespace: String,
+    pub(super) uri: String,
+    pub(super) queue_name: String,
+    pub(super) consumer_tag: String,
 }
 
 impl RabbitConsumer {
-    /// Establishes a new RabbitConsumer by connecting to a RabbitMQ broker and binding a queue to an exchange.
-    ///
-    /// # Parameters
-    /// * `uri` - The RabbitMQ connection URI.
-    /// * `queue_name` - The name of the queue to consume from.
-    /// * `app_group_namespace` - A namespace for logical separation of consumers.
-    /// * `exchange_name` - The name of the exchange to bind to.
-    ///
-    /// # Returns
-    /// A configured `RabbitConsumer`.
-    #[instrument]
-    pub async fn connect(
-        uri: &str,
-        queue_name: &str,
-        app_group_namespace: &str,
-        exchange_name: &str,
-    ) -> anyhow::Result<Self> {
-        Ok(RabbitConsumer {
-            uri: uri.to_string(),
-            queue_name: queue_name.to_string(),
-            app_group_namespace: app_group_namespace.to_string(),
-            exchange_name: exchange_name.to_string(),
-        })
-    }
-
     /// Loads messages from the queue and automatically acknowledges them upon receipt.
     ///
     /// # Parameters
@@ -67,15 +41,13 @@ impl RabbitConsumer {
         T: DeserializeOwned + Send + Sync + 'static,
     {
         let (sender, receiver) = mpsc::channel::<T>(channel_capacity);
-        let consumer_tag = format!("{}-{}", self.app_group_namespace, tag);
         let uri = self.uri.clone();
-        let exchange = self.exchange_name.clone();
         let queue = self.queue_name.clone();
-        let namespace = self.app_group_namespace.clone();
+        let consumer_tag = self.consumer_tag.clone();
 
         tokio::spawn(async move {
             loop {
-                match Self::create_channel_and_consumer(&uri, &queue, &exchange, &namespace, &consumer_tag).await {
+                match Self::create_channel_and_consumer(&uri, &queue, &consumer_tag).await {
                     Ok(mut consumer) => {
                         log::info!("Consumer started.");
                         while let Some(result) = consumer.next().await {
@@ -130,15 +102,13 @@ impl RabbitConsumer {
         T: DeserializeOwned + Send + Sync + 'static,
     {
         let (sender, receiver) = mpsc::channel::<AckableMessage<T>>(channel_capacity);
-        let consumer_tag = format!("{}-{}", self.app_group_namespace, tag);
         let uri = self.uri.clone();
-        let exchange = self.exchange_name.clone();
         let queue = self.queue_name.clone();
-        let namespace = self.app_group_namespace.clone();
+        let consumer_tag = self.consumer_tag.clone();
 
         tokio::spawn(async move {
             loop {
-                match Self::create_channel_and_consumer(&uri, &queue, &exchange, &namespace, &consumer_tag).await {
+                match Self::create_channel_and_consumer(&uri, &queue, &consumer_tag).await {
                     Ok(mut consumer) => {
                         log::info!("Ackable consumer started.");
                         while let Some(result) = consumer.next().await {
@@ -185,14 +155,10 @@ impl RabbitConsumer {
     async fn create_channel_and_consumer(
         uri: &str,
         queue_name: &str,
-        exchange_name: &str,
-        namespace: &str,
         consumer_tag: &str,
     ) -> anyhow::Result<Consumer> {
         let conn = Connection::connect(uri, ConnectionProperties::default()).await?;
-        let mut channel = conn.create_channel().await?;
-        let routing_key = make_routing_key(namespace, queue_name);
-        bind_queue(&mut channel, queue_name, exchange_name, &routing_key).await?;
+        let channel = conn.create_channel().await?;
 
         let consumer = channel
             .basic_consume(

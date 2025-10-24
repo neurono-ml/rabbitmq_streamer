@@ -1,22 +1,20 @@
 use lapin::{options::{BasicPublishOptions, ExchangeDeclareOptions}, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties, ExchangeKind};
 use serde::Serialize;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 use tracing::instrument;
-
-use crate::common::make_routing_key;
 
 /// A struct representing a RabbitMQ publisher. It holds the necessary information to publish messages to an exchange.
 /// **Parameters**
 /// * `channel`: A reference-counted handle to a channel, which is used to send messages.
 /// * `exchange_name`: The name of the exchange where messages will be published.
-/// * `app_group_namespace`: An identifier for the application used to create routing keys. This helps in segregating messages based on different applications or groups.
 pub struct RabbitPublisher {
     channel: Arc<Channel>,
     exchange_name: String,
     app_group_namespace: String,
 }
 
-impl RabbitPublisher {
+impl RabbitPublisher
+{
     /// Connects to a RabbitMQ broker and binds the specified exchange. Use app_group_namespace
     /// to identify your application while creating a routing key.
     /// **Parameters**
@@ -44,25 +42,29 @@ impl RabbitPublisher {
 
     /// Publishes a message to the specified destination queue.
     /// **Parameters**
-    /// * `destination_queue`: The name of the destination queue.
+    /// * `routing_key`: The routing key for the message
     /// * `message`: The message to be published.
     /// * `payload`: The message payload.
     /// **Returns**
     /// * `anyhow::Result<()>` - Returns an empty result if the message was successfully published.
     #[instrument(skip(self, message))]
-    pub async fn publish<T: Serialize>(
+    pub async fn publish<S1, S2, T>(
         &self,
-        destination_queue: &str,
+        routing_key: S2,
         message: &T,
-    ) -> anyhow::Result<()> {
-        let routing_key = make_routing_key(&self.app_group_namespace, destination_queue);
+    ) -> anyhow::Result<()>
+    where
+        S1: Into<String> + Debug,
+        S2: Into<String> + Debug,
+        T: Serialize,
+    {
         let payload = serde_json::to_string(&message)?;
         let publish_options = BasicPublishOptions{mandatory: true, immediate: false };
         
         let properties = BasicProperties::default();
 
         self.channel
-            .basic_publish(&self.exchange_name, &routing_key, publish_options, payload.as_bytes(), properties)
+            .basic_publish(&self.exchange_name, &routing_key.into(), publish_options, payload.as_bytes(), properties)
             .await?;
         Ok(())
     }
@@ -89,8 +91,6 @@ mod tests {
     use lapin::options::{ExchangeDeleteOptions, QueueBindOptions, QueueDeclareOptions, QueueDeleteOptions};
 
     use super::*;
-
-    use crate::common::make_routing_key;
 
     const AMQP_URL: &str = "amqp://admin:password@pipe:5672";
     const EXCHANGE_NAME: &str = "test";
@@ -120,7 +120,7 @@ mod tests {
             nowait: false,
         };
         
-        let routing_key = make_routing_key(APP_GROUP_NAMESPACE, QUEUE_NAME);
+        let routing_key = format!("{}.{}", APP_GROUP_NAMESPACE, QUEUE_NAME);
         let queue_bind_options = QueueBindOptions { nowait: false, };
         channel.queue_declare(EXCHANGE_NAME, queue_declare_options, FieldTable::default()).await?;
         channel.queue_bind(QUEUE_NAME, EXCHANGE_NAME, &routing_key, queue_bind_options, FieldTable::default()).await?;
