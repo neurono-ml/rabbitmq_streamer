@@ -31,10 +31,7 @@ impl RabbitConsumer {
     /// # Returns
     /// A configured `RabbitConsumer`.
     #[instrument]
-    pub async fn connect(
-        uri: &str,
-        queue_name: &str,
-    ) -> anyhow::Result<Self> {
+    pub async fn connect(uri: &str, queue_name: &str) -> anyhow::Result<Self> {
         Ok(RabbitConsumer {
             uri: uri.to_string(),
             queue_name: queue_name.to_string(),
@@ -57,12 +54,16 @@ impl RabbitConsumer {
     ) -> anyhow::Result<Receiver<T>>
     where
         T: DeserializeOwned + Send + Sync + 'static,
-        C: Into<String> + Debug
+        C: Into<String> + Debug,
     {
         let (sender, receiver) = mpsc::channel::<T>(channel_capacity);
         let uri = self.uri.clone();
         let queue = self.queue_name.clone();
-        let tag = if let Some(consumer_tag_) = consumer_tag {consumer_tag_.into()} else {format!("{}", uuid::Uuid::new_v4())};
+        let tag = if let Some(consumer_tag_) = consumer_tag {
+            consumer_tag_.into()
+        } else {
+            format!("{}", uuid::Uuid::new_v4())
+        };
 
         tokio::spawn(async move {
             loop {
@@ -119,12 +120,16 @@ impl RabbitConsumer {
     ) -> anyhow::Result<Receiver<AckableMessage<T>>>
     where
         T: DeserializeOwned + Send + Sync + 'static,
-        C: Into<String> + Debug
+        C: Into<String> + Debug,
     {
         let (sender, receiver) = mpsc::channel::<AckableMessage<T>>(channel_capacity);
         let uri = self.uri.clone();
         let queue = self.queue_name.clone();
-        let tag = if let Some(consumer_tag_) = consumer_tag {consumer_tag_.into()} else { format!("{}", uuid::Uuid::new_v4()) };
+        let tag = if let Some(consumer_tag_) = consumer_tag {
+            consumer_tag_.into()
+        } else {
+            format!("{}", uuid::Uuid::new_v4())
+        };
 
         tokio::spawn(async move {
             loop {
@@ -145,10 +150,12 @@ impl RabbitConsumer {
                                         }
                                         Err(e) => {
                                             log::error!("Failed to deserialize: {:?}", e);
-                                            let _ = delivery.nack(BasicNackOptions {
-                                                multiple: false,
-                                                requeue: false,
-                                            }).await;
+                                            let _ = delivery
+                                                .nack(BasicNackOptions {
+                                                    multiple: false,
+                                                    requeue: false,
+                                                })
+                                                .await;
                                         }
                                     }
                                 }
@@ -179,7 +186,7 @@ impl RabbitConsumer {
     ) -> anyhow::Result<Consumer> {
         let conn = Connection::connect(uri, ConnectionProperties::default()).await?;
         let channel = conn.create_channel().await?;
-        
+
         let consumer = channel
             .basic_consume(
                 queue_name,
@@ -197,4 +204,3 @@ impl RabbitConsumer {
         Ok(consumer)
     }
 }
-
