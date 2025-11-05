@@ -80,7 +80,7 @@ jobs:
           toolchain: ${{ matrix.rust-version }}
 
       - name: Cache cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
