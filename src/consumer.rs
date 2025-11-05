@@ -1,26 +1,24 @@
-use std::time::Duration;
+use std::{fmt::Debug, time::Duration};
 
 use futures::StreamExt;
 use lapin::{
-    options::{BasicConsumeOptions, BasicNackOptions, QueueBindOptions, QueueDeclareOptions},
+    options::{BasicConsumeOptions, BasicNackOptions},
     types::FieldTable,
-    Channel, Connection, ConnectionProperties, Consumer,
+    Connection, ConnectionProperties, Consumer,
 };
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc::{self, Receiver};
 use tokio::time::sleep;
 use tracing::instrument;
 
-use crate::{common::make_routing_key, rabbit_message::AckableMessage};
+use crate::rabbit_message::AckableMessage;
 
 /// A struct representing a RabbitMQ consumer.
 /// It manages connection, channel, and message consumption from a specified queue.
 #[derive(Debug)]
 pub struct RabbitConsumer {
     uri: String,
-    exchange_name: String,
     queue_name: String,
-    app_group_namespace: String,
 }
 
 impl RabbitConsumer {
@@ -29,8 +27,6 @@ impl RabbitConsumer {
     /// # Parameters
     /// * `uri` - The RabbitMQ connection URI.
     /// * `queue_name` - The name of the queue to consume from.
-    /// * `app_group_namespace` - A namespace for logical separation of consumers.
-    /// * `exchange_name` - The name of the exchange to bind to.
     ///
     /// # Returns
     /// A configured `RabbitConsumer`.
@@ -38,14 +34,10 @@ impl RabbitConsumer {
     pub async fn connect(
         uri: &str,
         queue_name: &str,
-        app_group_namespace: &str,
-        exchange_name: &str,
     ) -> anyhow::Result<Self> {
         Ok(RabbitConsumer {
             uri: uri.to_string(),
             queue_name: queue_name.to_string(),
-            app_group_namespace: app_group_namespace.to_string(),
-            exchange_name: exchange_name.to_string(),
         })
     }
 
@@ -53,29 +45,28 @@ impl RabbitConsumer {
     ///
     /// # Parameters
     /// * `channel_capacity` - Internal channel buffer size.
-    /// * `tag` - Identifier used for consumer instance.
+    /// * `consumer_tag` - Identifier used for consumer instance.
     ///
     /// # Returns
     /// An `mpsc::Receiver<T>` for consuming deserialized messages.
     #[instrument]
-    pub async fn load_messages<T>(
+    pub async fn load_messages<T, C>(
         &self,
         channel_capacity: usize,
-        tag: &str,
+        consumer_tag: Option<C>,
     ) -> anyhow::Result<Receiver<T>>
     where
         T: DeserializeOwned + Send + Sync + 'static,
+        C: Into<String> + Debug
     {
         let (sender, receiver) = mpsc::channel::<T>(channel_capacity);
-        let consumer_tag = format!("{}-{}", self.app_group_namespace, tag);
         let uri = self.uri.clone();
-        let exchange = self.exchange_name.clone();
         let queue = self.queue_name.clone();
-        let namespace = self.app_group_namespace.clone();
+        let tag = if let Some(consumer_tag_) = consumer_tag {consumer_tag_.into()} else {format!("{}", uuid::Uuid::new_v4())};
 
         tokio::spawn(async move {
             loop {
-                match Self::create_channel_and_consumer(&uri, &queue, &exchange, &namespace, &consumer_tag).await {
+                match Self::create_consumer(&uri, &queue, &tag).await {
                     Ok(mut consumer) => {
                         log::info!("Consumer started.");
                         while let Some(result) = consumer.next().await {
@@ -116,29 +107,28 @@ impl RabbitConsumer {
     ///
     /// # Parameters
     /// * `channel_capacity` - Internal channel buffer size.
-    /// * `tag` - Identifier used for consumer instance.
+    /// * `consumer_tag` - Identifier used for consumer instance.
     ///
     /// # Returns
     /// An `mpsc::Receiver<AckableMessage<T>>` for consuming messages with manual acknowledgment.
     #[instrument]
-    pub async fn load_ackable_messages<T>(
+    pub async fn load_ackable_messages<T, C>(
         &self,
         channel_capacity: usize,
-        tag: &str,
+        consumer_tag: Option<C>,
     ) -> anyhow::Result<Receiver<AckableMessage<T>>>
     where
         T: DeserializeOwned + Send + Sync + 'static,
+        C: Into<String> + Debug
     {
         let (sender, receiver) = mpsc::channel::<AckableMessage<T>>(channel_capacity);
-        let consumer_tag = format!("{}-{}", self.app_group_namespace, tag);
         let uri = self.uri.clone();
-        let exchange = self.exchange_name.clone();
         let queue = self.queue_name.clone();
-        let namespace = self.app_group_namespace.clone();
+        let tag = if let Some(consumer_tag_) = consumer_tag {consumer_tag_.into()} else { format!("{}", uuid::Uuid::new_v4()) };
 
         tokio::spawn(async move {
             loop {
-                match Self::create_channel_and_consumer(&uri, &queue, &exchange, &namespace, &consumer_tag).await {
+                match Self::create_consumer(&uri, &queue, &tag).await {
                     Ok(mut consumer) => {
                         log::info!("Ackable consumer started.");
                         while let Some(result) = consumer.next().await {
@@ -181,19 +171,15 @@ impl RabbitConsumer {
         Ok(receiver)
     }
 
-    /// Creates a new channel and binds a consumer to the queue.
-    async fn create_channel_and_consumer(
+    /// Creates a new channel
+    async fn create_consumer(
         uri: &str,
         queue_name: &str,
-        exchange_name: &str,
-        namespace: &str,
         consumer_tag: &str,
     ) -> anyhow::Result<Consumer> {
         let conn = Connection::connect(uri, ConnectionProperties::default()).await?;
-        let mut channel = conn.create_channel().await?;
-        let routing_key = make_routing_key(namespace, queue_name);
-        bind_queue(&mut channel, queue_name, exchange_name, &routing_key).await?;
-
+        let channel = conn.create_channel().await?;
+        
         let consumer = channel
             .basic_consume(
                 queue_name,
@@ -212,23 +198,3 @@ impl RabbitConsumer {
     }
 }
 
-/// Declares and binds a queue to an exchange with a routing key.
-///
-/// # Returns
-/// The channel after queue binding.
-async fn bind_queue(
-    channel: &mut Channel,
-    queue_name: &str,
-    exchange_name: &str,
-    routing_key: &str,
-) -> anyhow::Result<Channel> {
-    let queue_opts = QueueDeclareOptions {
-        durable: true,
-        ..Default::default()
-    };
-
-    channel.queue_declare(queue_name, queue_opts, FieldTable::default()).await?;
-    channel.queue_bind(queue_name, exchange_name, routing_key, QueueBindOptions::default(), FieldTable::default()).await?;
-
-    Ok(channel.to_owned())
-}

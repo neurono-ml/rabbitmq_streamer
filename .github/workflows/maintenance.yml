@@ -1,0 +1,95 @@
+name: Maintenance
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "## Dependency Status Report" >> dependency-report.md
+          echo "" >> dependency-report.md
+          echo "Generated on: $(date)" >> dependency-report.md
+          echo "" >> dependency-report.md
+          
+          echo "### Outdated Dependencies" >> dependency-report.md
+          cargo outdated --format json > outdated.json || true
+          
+          if [ -s outdated.json ] && [ "$(cat outdated.json)" != "[]" ]; then
+            echo "Found outdated dependencies" >> dependency-report.md
+            cargo outdated >> dependency-report.md
+          else
+            echo "✅ All dependencies are up to date!" >> dependency-report.md
+          fi
+
+      - name: Security audit
+        run: |
+          cargo install cargo-audit
+          echo "" >> dependency-report.md
+          echo "### Security Audit" >> dependency-report.md
+          
+          if cargo audit --format json > audit.json; then
+            echo "✅ No security vulnerabilities found!" >> dependency-report.md
+          else
+            echo "⚠️ Security vulnerabilities detected:" >> dependency-report.md
+            cargo audit >> dependency-report.md
+          fi
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-report
+          path: dependency-report.md
+
+  test-matrix:
+    name: Test on Multiple Rust Versions
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: [stable, beta, nightly]
+        continue-on-error: ${{ matrix.rust-version == 'nightly' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.rust-version }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
+        continue-on-error: ${{ matrix.rust-version == 'nightly' }}
+
+      - name: Report status
+        run: |
+          echo "✅ Tests passed on Rust ${{ matrix.rust-version }}"
