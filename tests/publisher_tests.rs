@@ -53,7 +53,7 @@ async fn setup_rabbitmq_container() -> (ContainerAsync<RabbitMq>, String) {
 async fn test_publisher_connect() {
     let (_container, connection_string) = setup_rabbitmq_container().await;
 
-    let _publisher = RabbitPublisher::connect(&connection_string, "test_exchange", "test_app")
+    let _publisher = RabbitPublisher::connect(&connection_string, "test_exchange")
         .await
         .expect("Failed to connect publisher");
 
@@ -65,7 +65,7 @@ async fn test_publisher_connect() {
 async fn test_publisher_publish_message() {
     let (_container, connection_string) = setup_rabbitmq_container().await;
 
-    let publisher = RabbitPublisher::connect(&connection_string, "test_exchange", "test_app")
+    let publisher = RabbitPublisher::connect(&connection_string, "test_exchange")
         .await
         .expect("Failed to connect publisher");
 
@@ -80,7 +80,7 @@ async fn test_publisher_publish_message() {
 async fn test_publisher_publish_multiple_messages() {
     let (_container, connection_string) = setup_rabbitmq_container().await;
 
-    let publisher = RabbitPublisher::connect(&connection_string, "test_exchange", "test_app")
+    let publisher = RabbitPublisher::connect(&connection_string, "test_exchange")
         .await
         .expect("Failed to connect publisher");
 
@@ -102,7 +102,7 @@ async fn test_publisher_publish_multiple_messages() {
 async fn test_publisher_with_different_routing_keys() {
     let (_container, connection_string) = setup_rabbitmq_container().await;
 
-    let publisher = RabbitPublisher::connect(&connection_string, "test_exchange", "test_app")
+    let publisher = RabbitPublisher::connect(&connection_string, "test_exchange")
         .await
         .expect("Failed to connect publisher");
 

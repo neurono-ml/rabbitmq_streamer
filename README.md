@@ -84,10 +84,9 @@ struct OrderEvent {
 async fn main() -> anyhow::Result<()> {
     let uri = "amqp://guest:guest@localhost:5672";
     let exchange_name = "orders";
-    let app_namespace = "order_service";
 
     // Connect to RabbitMQ and create publisher
-    let publisher = RabbitPublisher::connect(uri, exchange_name, app_namespace).await?;
+    let publisher = RabbitPublisher::connect(uri, exchange_name).await?;
 
     // Create and publish a message
     let order = OrderEvent {
@@ -255,7 +254,7 @@ async fn main() -> anyhow::Result<()> {
     let queue_name = "task_queue";
 
     // Create publisher
-    let publisher = RabbitPublisher::connect(uri, exchange_name, "task_service").await?;
+    let publisher = RabbitPublisher::connect(uri, exchange_name).await?;
 
     // Create consumer
     let consumer = RabbitConsumer::connect(uri, queue_name).await?;
