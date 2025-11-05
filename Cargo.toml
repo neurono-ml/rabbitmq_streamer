@@ -21,7 +21,7 @@ serde_json = "1"
 tracing = "0.1"
 anyhow = "1.0.98"
 uuid = { version = "1.16.0", features = ["v4"] }
-lapin = { version = "2.5.3", default-features = false, features = ["serde_json", "openssl"] }
+lapin = { version = "2.5.5", default-features = false, features = ["serde_json", "openssl"] }
 log = "0.4.27"
 
 [dev-dependencies]
