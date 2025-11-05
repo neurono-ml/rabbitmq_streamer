@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use lapin::{message::Delivery, options::{BasicAckOptions, BasicNackOptions, BasicRejectOptions}};
+use lapin::{
+    message::Delivery,
+    options::{BasicAckOptions, BasicNackOptions, BasicRejectOptions},
+};
 
 /// A message container that holds the message payload and can its delivery information,
 /// that can be acknowledged or rejected.
@@ -24,20 +27,24 @@ impl<T> AckableMessage<T> {
     }
 
     pub async fn nack(&self) -> anyhow::Result<()> {
-        let options = BasicNackOptions { requeue: true, multiple: false };
+        let options = BasicNackOptions {
+            requeue: true,
+            multiple: false,
+        };
         self.delivery.acker.nack(options).await?;
         Ok(())
     }
 
     pub async fn reject(&self) -> anyhow::Result<()> {
-        let options = BasicRejectOptions{ requeue: false };
+        let options = BasicRejectOptions { requeue: false };
         self.delivery.acker.reject(options).await?;
         Ok(())
     }
 
-    pub fn message(&self) -> T where T: Clone {
-        let message = (*self.payload).clone();
-        message
+    pub fn message(&self) -> T
+    where
+        T: Clone,
+    {
+        (*self.payload).clone()
     }
 }
-

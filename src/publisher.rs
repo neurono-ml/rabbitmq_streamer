@@ -1,4 +1,8 @@
-use lapin::{options::{BasicPublishOptions, ExchangeDeclareOptions}, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties, ExchangeKind};
+use lapin::{
+    options::{BasicPublishOptions, ExchangeDeclareOptions},
+    types::FieldTable,
+    BasicProperties, Channel, Connection, ConnectionProperties, ExchangeKind,
+};
 use serde::Serialize;
 use std::{fmt::Debug, sync::Arc};
 use tracing::instrument;
@@ -19,9 +23,13 @@ impl RabbitPublisher {
     /// * `uri`: The RabbitMQ broker URI.
     /// * `exchange`: The name of the exchange to bind.
     /// **Returns**
-    /// * `RabbitPublisher` - An instance of the publisher connected to the specified RabbitMQ 
+    /// * `RabbitPublisher` - An instance of the publisher connected to the specified RabbitMQ
     #[instrument]
-    pub async fn connect(uri: &str, exchange: &str, app_group_namespace: &str) -> anyhow::Result<Self> {
+    pub async fn connect(
+        uri: &str,
+        exchange: &str,
+        app_group_namespace: &str,
+    ) -> anyhow::Result<Self> {
         let connection_properties = ConnectionProperties::default();
         let connection = Connection::connect(uri, connection_properties).await?;
 
@@ -44,27 +52,31 @@ impl RabbitPublisher {
     /// **Returns**
     /// * `anyhow::Result<()>` - Returns an empty result if the message was successfully published.
     #[instrument(skip(self, message))]
-    pub async fn publish<T, K>(
-        &self,
-        message: &T,
-        routing_key: K,
-    ) -> anyhow::Result<()>
-where
-    T: Serialize,
-    K: Into<String> + Debug    
-{
+    pub async fn publish<T, K>(&self, message: &T, routing_key: K) -> anyhow::Result<()>
+    where
+        T: Serialize,
+        K: Into<String> + Debug,
+    {
         let payload = serde_json::to_string(&message)?;
-        let publish_options = BasicPublishOptions{mandatory: true, immediate: false };
-        
+        let publish_options = BasicPublishOptions {
+            mandatory: true,
+            immediate: false,
+        };
+
         let properties = BasicProperties::default();
 
         self.channel
-            .basic_publish(&self.exchange_name, &routing_key.into(), publish_options, payload.as_bytes(), properties)
+            .basic_publish(
+                &self.exchange_name,
+                &routing_key.into(),
+                publish_options,
+                payload.as_bytes(),
+                properties,
+            )
             .await?;
         Ok(())
     }
 }
-
 
 async fn bind_exchange(channel: &mut Channel, exchange_name: &str) -> anyhow::Result<Channel> {
     let exchange_declare_options = ExchangeDeclareOptions {
@@ -73,11 +85,16 @@ async fn bind_exchange(channel: &mut Channel, exchange_name: &str) -> anyhow::Re
         internal: false,
         nowait: false,
         passive: false,
-        ..ExchangeDeclareOptions::default()
     };
-    
-    channel.exchange_declare(exchange_name, ExchangeKind::Direct, exchange_declare_options, FieldTable::default()).await?;
+
+    channel
+        .exchange_declare(
+            exchange_name,
+            ExchangeKind::Direct,
+            exchange_declare_options,
+            FieldTable::default(),
+        )
+        .await?;
 
     Ok(channel.to_owned())
 }
-
