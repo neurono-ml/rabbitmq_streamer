@@ -1,6 +1,6 @@
 [package]
 name = "rabbitmq_streamer"
-version = "0.2.0"
+version = "1.1.0"
 edition = "2021"
 description = "A library to consume RabbiMQ streams"
 
@@ -25,8 +25,8 @@ lapin = { version = "2.5.3", default-features = false, features = ["serde_json",
 log = "0.4.27"
 
 [dev-dependencies]
-testcontainers = "0.23"
-testcontainers-modules = { version = "0.11", features = ["rabbitmq"] }
+testcontainers = "0.25"
+testcontainers-modules = { version = "0.13", features = ["rabbitmq"] }
 tokio-test = "0.4"
 serde = { version = "1", features = ["derive"] }
 
