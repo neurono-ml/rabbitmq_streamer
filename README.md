@@ -55,6 +55,15 @@ cargo test --test integration_tests
 
 For detailed testing information, see [TESTING.md](TESTING.md).
 
+### CI/CD Pipeline
+
+This project uses GitHub Actions for automated testing and publishing:
+- **Continuous Integration** - Automatic testing on every push and PR
+- **Automated Releases** - Publishes to crates.io when version changes on main branch
+- **Security Audits** - Weekly dependency and security checks
+
+For complete CI/CD documentation, see [CI_CD.md](CI_CD.md).
+
 ### Examples
 
 #### Publishing Messages

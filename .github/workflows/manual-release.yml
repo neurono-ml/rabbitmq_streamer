@@ -1,0 +1,180 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+      create_tag:
+        description: 'Create git tag'
+        required: true
+        type: boolean
+        default: true
+      publish_crates:
+        description: 'Publish to crates.io'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  validate-version:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate version format
+        id: validate
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          
+          # Check if version follows semantic versioning
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Version must follow semantic versioning (e.g., 1.0.0, 1.0.0-beta.1)"
+            exit 1
+          fi
+          
+          echo "✅ Version format is valid: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  update-version:
+    name: Update Version in Cargo.toml
+    runs-on: ubuntu-latest
+    needs: validate-version
+    outputs:
+      updated: ${{ steps.update.outputs.updated }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Cargo.toml version
+        id: update
+        run: |
+          VERSION="${{ needs.validate-version.outputs.version }}"
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -n1 | sed 's/version = "\(.*\)"/\1/')
+          
+          echo "Current version: $CURRENT_VERSION"
+          echo "Target version: $VERSION"
+          
+          if [ "$CURRENT_VERSION" = "$VERSION" ]; then
+            echo "Version is already $VERSION, no update needed"
+            echo "updated=false" >> $GITHUB_OUTPUT
+          else
+            # Update version in Cargo.toml
+            sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+            
+            # Configure git
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            
+            # Commit the version update
+            git add Cargo.toml
+            git commit -m "chore: bump version to $VERSION"
+            git push
+            
+            echo "✅ Updated version to $VERSION"
+            echo "updated=true" >> $GITHUB_OUTPUT
+          fi
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: [validate-version, update-version]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run all tests
+        run: cargo test --verbose
+        env:
+          RUST_LOG: info
+
+  create-tag:
+    name: Create Git Tag
+    runs-on: ubuntu-latest
+    needs: [validate-version, update-version, test]
+    if: github.event.inputs.create_tag == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ needs.validate-version.outputs.version }}"
+          TAG_NAME="v$VERSION"
+          
+          # Configure git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Create annotated tag
+          git tag -a "$TAG_NAME" -m "Release version $VERSION
+
+          Released via manual workflow dispatch.
+          
+          This release includes:
+          - All tests passing ✅
+          - Updated documentation
+          - Version bump to $VERSION"
+          
+          git push origin "$TAG_NAME"
+          
+          echo "✅ Created and pushed tag: $TAG_NAME"
+
+  publish-crates:
+    name: Publish to Crates.io
+    runs-on: ubuntu-latest
+    needs: [validate-version, update-version, test]
+    if: github.event.inputs.publish_crates == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Publish to crates.io
+        run: |
+          echo "🚀 Publishing version ${{ needs.validate-version.outputs.version }} to crates.io..."
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --color always
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Notify success
+        run: |
+          echo "✅ Successfully published version ${{ needs.validate-version.outputs.version }} to crates.io!"
+          echo "📦 Package is now available at: https://crates.io/crates/rabbitmq_streamer"
