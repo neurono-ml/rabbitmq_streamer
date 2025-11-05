@@ -1,11 +1,11 @@
 ## RabbitMQ Streammer
 
-[crates-badge]: https://img.shields.io/crates/v/rabbitmq_streammer.svg
-[crates-url]: https://crates.io/crates/rabbitmq_streammer
-[mit-url]: https://github.com/cgbur/rabbitmq_streammer/blob/master/LICENSE
+[crates-badge]: https://img.shields.io/crates/v/rabbitmq_streamer.svg
+[crates-url]: https://crates.io/crates/rabbitmq_streamer
+[mit-url]: https://github.com/cgbur/rabbitmq_streamer/blob/master/LICENSE
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 
-[![Crates.io][crates-badge]][[crates-url](https://crates.io/crates/rabbitmq_streamer)]
+[![Crates.io][crates-badge]][crates-url](https://crates.io/crates/rabbitmq_streamer)
 
 A easy library for publishing to RabbitMQ and Consuming from it using [Rust Streams](https://doc.rust-lang.org/book/ch17-04-streams.html). It provides a high-level API for connecting to RabbitMQ, publishing, consuming messages from queues and acking them in batches.
 
