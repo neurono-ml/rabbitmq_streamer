@@ -25,7 +25,7 @@ lapin = { version = "2.5.3", default-features = false, features = ["serde_json",
 log = "0.4.27"
 
 [dev-dependencies]
-testcontainers = "0.23"
+testcontainers = "0.24"
 testcontainers-modules = { version = "0.11", features = ["rabbitmq"] }
 tokio-test = "0.4"
 serde = { version = "1", features = ["derive"] }
