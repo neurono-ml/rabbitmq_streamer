@@ -124,7 +124,7 @@ async fn test_publisher_consumer_integration() {
         .expect("Failed to setup queue binding");
 
     // Create publisher
-    let publisher = RabbitPublisher::connect(&connection_string, exchange_name, "test_app")
+    let publisher = RabbitPublisher::connect(&connection_string, exchange_name)
         .await
         .expect("Failed to connect publisher");
 
@@ -214,7 +214,7 @@ async fn test_publisher_consumer_ackable_integration() {
         .expect("Failed to setup queue binding");
 
     // Create publisher
-    let publisher = RabbitPublisher::connect(&connection_string, exchange_name, "test_app")
+    let publisher = RabbitPublisher::connect(&connection_string, exchange_name)
         .await
         .expect("Failed to connect publisher");
 
@@ -314,7 +314,7 @@ async fn test_multiple_routing_keys_integration() {
     }
 
     // Create publisher
-    let publisher = RabbitPublisher::connect(&connection_string, exchange_name, "test_app")
+    let publisher = RabbitPublisher::connect(&connection_string, exchange_name)
         .await
         .expect("Failed to connect publisher");
 

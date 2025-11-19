@@ -1,6 +1,6 @@
 [package]
 name = "rabbitmq_streamer"
-version = "1.1.0"
+version = "1.1.2"
 edition = "2021"
 description = "A library to consume RabbiMQ streams"
 

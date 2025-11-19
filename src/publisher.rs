@@ -28,7 +28,6 @@ impl RabbitPublisher {
     pub async fn connect(
         uri: &str,
         exchange: &str,
-        app_group_namespace: &str,
     ) -> anyhow::Result<Self> {
         let connection_properties = ConnectionProperties::default();
         let connection = Connection::connect(uri, connection_properties).await?;

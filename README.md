@@ -1,11 +1,11 @@
 ## RabbitMQ Streammer
 
-[crates-badge]: https://img.shields.io/crates/v/rabbitmq_streammer.svg
-[crates-url]: https://crates.io/crates/rabbitmq_streammer
-[mit-url]: https://github.com/cgbur/rabbitmq_streammer/blob/master/LICENSE
+[crates-badge]: https://img.shields.io/crates/v/rabbitmq_streamer.svg
+[crates-url]: https://crates.io/crates/rabbitmq_streamer
+[mit-url]: https://github.com/cgbur/rabbitmq_streamer/blob/master/LICENSE
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 
-[![Crates.io][crates-badge]][[crates-url](https://crates.io/crates/rabbitmq_streamer)]
+[![Crates.io][crates-badge]][crates-url](https://crates.io/crates/rabbitmq_streamer)
 
 A easy library for publishing to RabbitMQ and Consuming from it using [Rust Streams](https://doc.rust-lang.org/book/ch17-04-streams.html). It provides a high-level API for connecting to RabbitMQ, publishing, consuming messages from queues and acking them in batches.
 
@@ -84,10 +84,9 @@ struct OrderEvent {
 async fn main() -> anyhow::Result<()> {
     let uri = "amqp://guest:guest@localhost:5672";
     let exchange_name = "orders";
-    let app_namespace = "order_service";
 
     // Connect to RabbitMQ and create publisher
-    let publisher = RabbitPublisher::connect(uri, exchange_name, app_namespace).await?;
+    let publisher = RabbitPublisher::connect(uri, exchange_name).await?;
 
     // Create and publish a message
     let order = OrderEvent {
@@ -255,7 +254,7 @@ async fn main() -> anyhow::Result<()> {
     let queue_name = "task_queue";
 
     // Create publisher
-    let publisher = RabbitPublisher::connect(uri, exchange_name, "task_service").await?;
+    let publisher = RabbitPublisher::connect(uri, exchange_name).await?;
 
     // Create consumer
     let consumer = RabbitConsumer::connect(uri, queue_name).await?;
