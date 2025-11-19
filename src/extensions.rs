@@ -6,10 +6,10 @@ pub trait AckableMessageCollectionExtension<T> {
     fn reject(&self) -> impl std::future::Future<Output = anyhow::Result<()>>;
 }
 
-impl<T> AckableMessageCollectionExtension<T> for T
+impl<T, C> AckableMessageCollectionExtension<T> for C
 where
-    T: IntoIterator<Item = AckableMessage<T>>,
-    T: Copy,
+    C: IntoIterator<Item = AckableMessage<T>>,
+    C: Copy,
 {
     async fn ack(&self) -> anyhow::Result<()> {
         for ackable_message in self.into_iter() {
